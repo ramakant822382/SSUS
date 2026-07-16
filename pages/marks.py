@@ -7,7 +7,7 @@ from database.mongodb import (
 
 from utils.grade import calculate_grade
 
-st.title("Marks Management")
+st.title(":rainbow[Marks Management]")
 
 students = list(
     students_collection.find()

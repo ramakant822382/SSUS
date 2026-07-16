@@ -1,7 +1,7 @@
 import streamlit as st
 from database.mongodb import students_collection, bmi_collection
 
-st.title("BMI Calculator")
+st.title(":rainbow[BMI Calculator]")
 
 # Load students from the database
 students = list(students_collection.find())

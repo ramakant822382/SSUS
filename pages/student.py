@@ -3,7 +3,7 @@ import pandas as pd
 
 from database.mongodb import students_collection
 
-st.title("Student list")
+st.title(":rainbow[Student list]")
 search = st.text_input(
     "Search Student"
 )

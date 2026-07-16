@@ -3,5 +3,5 @@ st.set_page_config(
     page_title="SSUS",
     layout="wide"
 )
-st.title("Smart Student utility system")
-st.write("Student Management and Utilities")
+st.title(":rainbow[Smart Student utility system]")
+st.write(":green[Student Management and Utilities]")
