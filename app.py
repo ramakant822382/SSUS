@@ -1,123 +1,185 @@
 import streamlit as st
-st.set_page_config(page_title="Student Utility", layout="wide")
+from datetime import datetime
+import random
+
+st.set_page_config(
+    page_title="Student Utility",
+    page_icon="🎓",
+    layout="wide"
+)
+
+# ---------------- CSS ---------------- #
 
 st.markdown("""
 <style>
 
-/* Hide Streamlit default menu */
-#MainMenu {visibility:hidden;}
-footer {visibility:hidden;}
-header {visibility:hidden;}
+.main{
+    background: linear-gradient(to right,#eef2ff,#f8fbff);
+}
 
-/* Hero Section */
 .hero{
-    background-image:url('https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=1600&q=80');
-    background-size:cover;
-    background-position:center;
-    border-radius:20px;
-    height:520px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-}
-
-.overlay{
-    background:rgba(0,0,0,.55);
-    padding:60px;
-    border-radius:20px;
+    background: linear-gradient(135deg,#4F46E5,#06B6D4);
+    padding:35px;
+    border-radius:18px;
     text-align:center;
-}
-
-.title{
     color:white;
-    font-size:58px;
-    font-weight:700;
+    margin-bottom:25px;
 }
 
-.subtitle{
-    color:white;
-    font-size:22px;
+.hero h1{
+    font-size:48px;
 }
 
-/* Feature Cards */
 .card{
     background:black;
+    color:aqua;        
     padding:25px;
     border-radius:18px;
     text-align:center;
-    box-shadow:0 10px 25px rgba(0,0,0,.15);
-    transition:.3s;
+    box-shadow:0px 5px 18px rgba(0,0,0,.1);
+    transition:0.3s;
 }
 
 .card:hover{
     transform:translateY(-8px);
+    box-shadow:0px 12px 25px rgba(0,0,0,.2);
 }
 
-.icon{
-    font-size:50px;
+.stat{
+    background:black;
+    color:aqua;
+    padding:20px;
+    border-radius:15px;
+    text-align:center;
+    box-shadow:0 2px 10px rgba(0,0,0,.08);
+}
+
+.tip{
+    background: linear-gradient(135deg,#4F46E5,#06B6D4);
+    padding:18px;
+    border-radius:12px;
+    border-left:6px solid #0284C7;
 }
 
 </style>
 """, unsafe_allow_html=True)
 
-# Hero
+# ---------------- Hero ---------------- #
+
 st.markdown("""
 <div class="hero">
-    <div class="overlay">
-        <div class="title">🎓 Student Utility Portal</div>
-        <br>
-        <div class="subtitle">
-        Everything a student needs in one place.
-        </div>
-    </div>
+<h1>🎓 Student Utility</h1>
+<h4>Everything a Student Needs in One Place</h4>
 </div>
 """, unsafe_allow_html=True)
 
+# ---------------- Date ---------------- #
+
+today = datetime.now()
+
+st.info(f"📅 {today.strftime('%A, %d %B %Y')}")
+
+# ---------------- Statistics ---------------- #
+
+s1,s2,s3,s4=st.columns(4)
+
+with s1:
+    st.markdown("""
+    <div class="stat">
+    <h2>25</h2>
+    <p>Subjects</p>
+    </div>
+    """,unsafe_allow_html=True)
+
+with s2:
+    st.markdown("""
+    <div class="stat">
+    <h2>90%</h2>
+    <p>Attendance</p>
+    </div>
+    """,unsafe_allow_html=True)
+
+with s3:
+    st.markdown("""
+    <div class="stat">
+    <h2>12</h2>
+    <p>Assignments</p>
+    </div>
+    """,unsafe_allow_html=True)
+
+with s4:
+    st.markdown("""
+    <div class="stat">
+    <h2>5</h2>
+    <p>Exams</p>
+    </div>
+    """,unsafe_allow_html=True)
+
 st.write("")
-st.write("")
+
+# ---------------- Feature Cards ---------------- #
 
 col1,col2,col3,col4=st.columns(4)
 
-with col1:
-    st.markdown("""
-    <div class="card">
-    <div class="icon">📚</div>
-    <h3>Notes</h3>
-    Organize study materials.
-    </div>
-    """,unsafe_allow_html=True)
+cards=[
+("📚","Notes","Organize study materials"),
+("📅","Attendance","Track attendance easily"),
+("📝","Assignments","Never miss deadlines"),
+("🧮","Calculator","Quick calculations")
+]
 
-with col2:
-    st.markdown("""
-    <div class="card">
-    <div class="icon">📅</div>
-    <h3>Attendance</h3>
-    Track attendance easily.
-    </div>
-    """,unsafe_allow_html=True)
-
-with col3:
-    st.markdown("""
-    <div class="card">
-    <div class="icon">📝</div>
-    <h3>Assignments</h3>
-    Never miss deadlines.
-    </div>
-    """,unsafe_allow_html=True)
-
-with col4:
-    st.markdown("""
-    <div class="card">
-    <div class="icon">🧮</div>
-    <h3>Calculator</h3>
-    Quick calculations.
-    </div>
-    """,unsafe_allow_html=True)
+for col,(icon,title,desc) in zip([col1,col2,col3,col4],cards):
+    with col:
+        st.markdown(f"""
+        <div class="card">
+        <h1>{icon}</h1>
+        <h3>{title}</h3>
+        <p>{desc}</p>
+        </div>
+        """,unsafe_allow_html=True)
 
 st.write("")
-st.markdown("## 🚀 Quick Access")
 
-c1,c2,c3=st.columns(3)
+# ---------------- Progress ---------------- #
+
+st.subheader("🎯 Semester Progress")
+
+st.progress(68)
+
+st.caption("68% Semester Completed")
+
+st.write("")
+
+# ---------------- Study Tip ---------------- #
+
+tips=[
+"Revise your notes before sleeping.",
+"Study 45 minutes then take a 10 minute break.",
+"Practice coding daily.",
+"Complete assignments before deadlines.",
+"Make short notes for revision."
+]
+
+st.markdown(f"""
+<div class="tip">
+<h4>💡 Daily Study Tip</h4>
+<p>{random.choice(tips)}</p>
+</div>
+""",unsafe_allow_html=True)
+
+st.write("")
+
+# ---------------- Announcement ---------------- #
+
+st.success("📢 Mid Semester Exams start from next Monday.")
+
+st.write("")
+
+# ---------------- Quick Access ---------------- #
+
+st.subheader("🚀 Quick Access")
+
+c1,c2,c3,c4=st.columns(4)
 
 with c1:
     st.button("📖 Open Notes",use_container_width=True)
@@ -126,4 +188,14 @@ with c2:
     st.button("📅 Attendance",use_container_width=True)
 
 with c3:
+    st.button("📝 Assignments",use_container_width=True)
+
+with c4:
     st.button("🧮 Calculator",use_container_width=True)
+
+st.write("")
+
+# ---------------- Footer ---------------- #
+
+st.markdown("---")
+st.caption("Made with ❤️ using Streamlit")
