@@ -12,5 +12,5 @@ df=pd.DataFrame(data)
 st.dataframe(df)
 
 st.bar_chart(
-    df["age"]
+    df["first_name"]
 )
