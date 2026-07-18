@@ -2,200 +2,153 @@ import streamlit as st
 from datetime import datetime
 import random
 
+from database.mongodb import (
+    students_collection,
+    attendance_collection,
+    marks_collection,
+    bmi_collection
+)
+
 st.set_page_config(
     page_title="Student Utility",
     page_icon="🎓",
     layout="wide"
 )
 
-# ---------------- CSS ---------------- #
+st.title("🎓 Student Utility Dashboard")
 
-st.markdown("""
-<style>
+st.write(f"📅 {datetime.now().strftime('%d %B %Y')}")
 
-.main{
-    background: linear-gradient(to right,#eef2ff,#f8fbff);
-}
+# ---------------- DATABASE DATA ----------------
 
-.hero{
-    background: linear-gradient(135deg,#4F46E5,#06B6D4);
-    padding:35px;
-    border-radius:18px;
-    text-align:center;
-    color:white;
-    margin-bottom:25px;
-}
+total_students = students_collection.count_documents({})
 
-.hero h1{
-    font-size:48px;
-}
+total_attendance = attendance_collection.count_documents({})
+present = attendance_collection.count_documents({"status": "Present"})
 
-.card{
-    background:black;
-    color:aqua;        
-    padding:25px;
-    border-radius:18px;
-    text-align:center;
-    box-shadow:0px 5px 18px rgba(0,0,0,.1);
-    transition:0.3s;
-}
+attendance_percent = (
+    round((present / total_attendance) * 100, 2)
+    if total_attendance > 0 else 0
+)
 
-.card:hover{
-    transform:translateY(-8px);
-    box-shadow:0px 12px 25px rgba(0,0,0,.2);
-}
+total_marks = marks_collection.count_documents({})
+total_bmi = bmi_collection.count_documents({})
 
-.stat{
-    background:black;
-    color:aqua;
-    padding:20px;
-    border-radius:15px;
-    text-align:center;
-    box-shadow:0 2px 10px rgba(0,0,0,.08);
-}
+# ---------------- DASHBOARD ----------------
 
-.tip{
-    background: linear-gradient(135deg,#4F46E5,#06B6D4);
-    padding:18px;
-    border-radius:12px;
-    border-left:6px solid #0284C7;
-}
+c1, c2, c3, c4 = st.columns(4)
 
-</style>
-""", unsafe_allow_html=True)
+c1.metric("👨‍🎓 Students", total_students)
+c2.metric("📅 Attendance", f"{attendance_percent}%")
+c3.metric("📚 Marks Reports", total_marks)
+c4.metric("⚕️ BMI Reports", total_bmi)
 
-# ---------------- Hero ---------------- #
+st.divider()
 
-st.markdown("""
-<div class="hero">
-<h1>🎓 Student Utility</h1>
-<h4>Everything a Student Needs in One Place</h4>
-</div>
-""", unsafe_allow_html=True)
+# ---------------- RECENT STUDENTS ----------------
 
-# ---------------- Date ---------------- #
+left, right = st.columns(2)
 
-today = datetime.now()
+with left:
 
-st.info(f"📅 {today.strftime('%A, %d %B %Y')}")
+    st.subheader("👨‍🎓 Recent Students")
 
-# ---------------- Statistics ---------------- #
+    students = list(
+        students_collection.find().sort("_id", -1).limit(5)
+    )
 
-s1,s2,s3,s4=st.columns(4)
+    if students:
 
-with s1:
-    st.markdown("""
-    <div class="stat">
-    <h2>25</h2>
-    <p>Subjects</p>
-    </div>
-    """,unsafe_allow_html=True)
+        for s in students:
 
-with s2:
-    st.markdown("""
-    <div class="stat">
-    <h2>90%</h2>
-    <p>Attendance</p>
-    </div>
-    """,unsafe_allow_html=True)
+            st.write(
+                f"• {s['first_name']} {s['last_name']} ({s['course']})"
+            )
 
-with s3:
-    st.markdown("""
-    <div class="stat">
-    <h2>12</h2>
-    <p>Assignments</p>
-    </div>
-    """,unsafe_allow_html=True)
+    else:
+        st.info("No Students")
 
-with s4:
-    st.markdown("""
-    <div class="stat">
-    <h2>5</h2>
-    <p>Exams</p>
-    </div>
-    """,unsafe_allow_html=True)
+with right:
 
-st.write("")
+    st.subheader("📅 Recent Attendance")
 
-# ---------------- Feature Cards ---------------- #
+    attendance = list(
+        attendance_collection.find().sort("_id", -1).limit(5)
+    )
 
-col1,col2,col3,col4=st.columns(4)
+    if attendance:
 
-cards=[
-("📚","Notes","Organize study materials"),
-("📅","Attendance","Track attendance easily"),
-("📝","Assignments","Never miss deadlines"),
-("🧮","Calculator","Quick calculations")
+        for a in attendance:
+
+            emoji = "✅" if a["status"] == "Present" else "❌"
+
+            st.write(
+                f"{emoji} {a['student_name']} - {a['date']}"
+            )
+
+    else:
+        st.info("No Attendance")
+
+st.divider()
+
+# ---------------- TOP MARKS ----------------
+
+left, right = st.columns(2)
+
+with left:
+
+    st.subheader("🏆 Top Students")
+
+    top = list(
+        marks_collection.find().sort("percentage", -1).limit(5)
+    )
+
+    if top:
+
+        for i in top:
+
+            st.write(
+                f"🥇 {i['student_name']} - {i['percentage']}% ({i['grade']})"
+            )
+
+    else:
+        st.info("No Marks Data")
+
+with right:
+
+    st.subheader("⚕️ Latest BMI")
+
+    bmi = list(
+        bmi_collection.find().sort("_id", -1).limit(5)
+    )
+
+    if bmi:
+
+        for b in bmi:
+
+            st.write(
+                f"👤 {b['student_name']} | BMI : {b['bmi']} ({b['category']})"
+            )
+
+    else:
+        st.info("No BMI Data")
+
+st.divider()
+
+# ---------------- STUDY TIP ----------------
+
+tips = [
+    "📘 Revise your notes every day.",
+    "💻 Practice coding regularly.",
+    "📝 Complete assignments on time.",
+    "📖 Read for at least 1 hour daily.",
+    "🎯 Focus on one subject at a time."
 ]
 
-for col,(icon,title,desc) in zip([col1,col2,col3,col4],cards):
-    with col:
-        st.markdown(f"""
-        <div class="card">
-        <h1>{icon}</h1>
-        <h3>{title}</h3>
-        <p>{desc}</p>
-        </div>
-        """,unsafe_allow_html=True)
+st.success(random.choice(tips))
 
-st.write("")
+st.divider()
 
-# ---------------- Progress ---------------- #
+# ---------------- FOOTER ----------------
 
-st.subheader("🎯 Semester Progress")
-
-st.progress(68)
-
-st.caption("68% Semester Completed")
-
-st.write("")
-
-# ---------------- Study Tip ---------------- #
-
-tips=[
-"Revise your notes before sleeping.",
-"Study 45 minutes then take a 10 minute break.",
-"Practice coding daily.",
-"Complete assignments before deadlines.",
-"Make short notes for revision."
-]
-
-st.markdown(f"""
-<div class="tip">
-<h4>💡 Daily Study Tip</h4>
-<p>{random.choice(tips)}</p>
-</div>
-""",unsafe_allow_html=True)
-
-st.write("")
-
-# ---------------- Announcement ---------------- #
-
-st.success("📢 Mid Semester Exams start from next Monday.")
-
-st.write("")
-
-# ---------------- Quick Access ---------------- #
-
-st.subheader("🚀 Quick Access")
-
-c1,c2,c3,c4=st.columns(4)
-
-with c1:
-    st.button("📖 Open Notes",use_container_width=True)
-
-with c2:
-    st.button("📅 Attendance",use_container_width=True)
-
-with c3:
-    st.button("📝 Assignments",use_container_width=True)
-
-with c4:
-    st.button("🧮 Calculator",use_container_width=True)
-
-st.write("")
-
-# ---------------- Footer ---------------- #
-
-st.markdown("---")
 st.caption("Made with ❤️ using Streamlit")

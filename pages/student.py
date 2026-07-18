@@ -3,210 +3,242 @@ import pandas as pd
 
 from database.mongodb import students_collection
 
-# ---------------- Page Config ----------------
 st.set_page_config(
-    page_title="Student List",
+    page_title="Students",
     page_icon="👨‍🎓",
     layout="wide"
 )
 
-# ---------------- CSS ----------------
-st.markdown("""
-<style>
+st.title("👨‍🎓 Student Management")
 
-.stApp{
-    background:black;
-}
+# ====================================================
+# SEARCH
+# ====================================================
 
-.title{
-    font-size:42px;
-    font-weight:bold;
-    color:#1E3A8A;
-}
-
-.subtitle{
-    color:aqua;
-    font-size:18px;
-}
-
-.card{
-    background:black;
-    padding:18px;
-    border-radius:15px;
-    box-shadow:0px 3px 10px rgba(0,0,0,.08);
-    text-align:center;
-}
-
-.footer{
-    text-align:center;
-    color:gray;
-}
-
-</style>
-""", unsafe_allow_html=True)
-
-# ---------------- Hero Section ----------------
-
-left, right = st.columns([1.3,1])
-
-with left:
-
-    st.markdown(
-        '<p class="title">👨‍🎓 Student List</p>',
-        unsafe_allow_html=True
-    )
-
-    st.markdown("""
-<div class="subtitle">
-Search, view and manage all registered students.
-Find students quickly using their name or email.
-</div>
-""", unsafe_allow_html=True)
-
-with right:
-
-    st.image(
-        "https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=900",
-        use_container_width=True
-    )
-
-st.divider()
-
-# ---------------- Search ----------------
-
-search = st.text_input(
-    "🔍 Search Student (Name or Email)"
-)
-
-# -------- Query (UNCHANGED) --------
+search = st.text_input("🔍 Search Student")
 
 query = {}
 
 if search:
     query = {
-        "$or":[
+        "$or": [
             {
-                "first_name":{
-                    "$regex":search,
-                    "$options":"i"
+                "first_name": {
+                    "$regex": search,
+                    "$options": "i"
                 }
             },
             {
-                "email":{
-                    "$regex":search,
-                    "$options":"i"
+                "email": {
+                    "$regex": search,
+                    "$options": "i"
                 }
             }
         ]
     }
 
-students = list(
-    students_collection.find(query)
+students = list(students_collection.find(query))
+
+# ====================================================
+# DASHBOARD
+# ====================================================
+
+c1, c2, c3 = st.columns(3)
+
+c1.metric("Students", len(students))
+
+courses = len(
+    set(s["course"] for s in students)
+) if students else 0
+
+c2.metric("Courses", courses)
+
+emails = len(
+    [s for s in students if s.get("email")]
 )
 
-# ---------------- Dashboard ----------------
+c3.metric("Emails", emails)
 
-c1,c2,c3 = st.columns(3)
+st.divider()
 
-with c1:
-    st.markdown(f"""
-<div class="card">
-<h2>👨‍🎓</h2>
-<h3>{len(students)}</h3>
-Students Found
-</div>
-""", unsafe_allow_html=True)
+# ====================================================
+# CREATE
+# ====================================================
 
-with c2:
+st.subheader("➕ Add Student")
 
-    courses = len(
-        set(student["course"] for student in students)
-    ) if students else 0
+col1, col2 = st.columns(2)
 
-    st.markdown(f"""
-<div class="card">
-<h2>📚</h2>
-<h3>{courses}</h3>
-Courses
-</div>
-""", unsafe_allow_html=True)
+with col1:
 
-with c3:
-
-    emails = len(
-        [student for student in students if student.get("email")]
+    first_name = st.text_input(
+        "First Name",
+        key="first_name"
     )
 
-    st.markdown(f"""
-<div class="card">
-<h2>📧</h2>
-<h3>{emails}</h3>
-Emails
-</div>
-""", unsafe_allow_html=True)
+    email = st.text_input(
+        "Email",
+        key="email"
+    )
 
-st.write("")
+with col2:
 
-# ---------------- Student Table ----------------
+    last_name = st.text_input(
+        "Last Name",
+        key="last_name"
+    )
 
-st.subheader("📋 Registered Students")
+    course = st.text_input(
+        "Course",
+        key="course"
+    )
+
+if st.button("Save Student"):
+
+    students_collection.insert_one({
+
+        "first_name": first_name,
+        "last_name": last_name,
+        "email": email,
+        "course": course
+
+    })
+
+    st.success("Student Added Successfully")
+    st.rerun()
+
+st.divider()
+
+# ====================================================
+# READ
+# ====================================================
+
+st.subheader("📋 Student List")
+
+students = list(students_collection.find(query))
 
 if students:
 
-    for student in students:
-        student["_id"] = str(student["_id"])
+    data = []
 
-    df = pd.DataFrame(students)
+    for student in students:
+
+        data.append({
+
+            "_id": str(student["_id"]),
+            "First Name": student["first_name"],
+            "Last Name": student["last_name"],
+            "Email": student["email"],
+            "Course": student["course"]
+
+        })
+
+    df = pd.DataFrame(data)
 
     st.dataframe(
-        df,
+        df.drop(columns="_id"),
         use_container_width=True,
         hide_index=True
     )
 
+    st.divider()
+
+    # ====================================================
+    # UPDATE & DELETE
+    # ====================================================
+
+    st.subheader("✏ Update / Delete Student")
+
+    selected_id = st.selectbox(
+
+        "Select Student",
+
+        df["_id"],
+
+        format_func=lambda x:
+            df[df["_id"] == x]["First Name"].iloc[0]
+            + " "
+            + df[df["_id"] == x]["Last Name"].iloc[0],
+
+        key="student_select"
+
+    )
+
+    selected = None
+
+    for student in students:
+
+        if str(student["_id"]) == selected_id:
+            selected = student
+            break
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        edit_first = st.text_input(
+            "First Name",
+            value=selected["first_name"],
+            key="edit_first"
+        )
+
+        edit_email = st.text_input(
+            "Email",
+            value=selected["email"],
+            key="edit_email"
+        )
+
+    with col2:
+
+        edit_last = st.text_input(
+            "Last Name",
+            value=selected["last_name"],
+            key="edit_last"
+        )
+
+        edit_course = st.text_input(
+            "Course",
+            value=selected["course"],
+            key="edit_course"
+        )
+
+    b1, b2 = st.columns(2)
+
+    with b1:
+
+        if st.button("Update Student"):
+
+            students_collection.update_one(
+
+                {"_id": selected["_id"]},
+
+                {
+                    "$set": {
+
+                        "first_name": edit_first,
+                        "last_name": edit_last,
+                        "email": edit_email,
+                        "course": edit_course
+
+                    }
+                }
+
+            )
+
+            st.success("Student Updated Successfully")
+            st.rerun()
+
+    with b2:
+
+        if st.button("Delete Student"):
+
+            students_collection.delete_one(
+                {"_id": selected["_id"]}
+            )
+
+            st.success("Student Deleted Successfully")
+            st.rerun()
+
 else:
-    st.warning("No student found!")
 
-st.divider()
-
-# ---------------- Student Cards ----------------
-
-if students:
-
-    st.subheader("🎓 Student Cards")
-
-    cols = st.columns(3)
-
-    for index, student in enumerate(students):
-
-        with cols[index % 3]:
-
-            st.markdown(f"""
-<div style="
-background:black;
-border:2px solid aqua;                        
-padding:18px;
-border-radius:15px;
-box-shadow:0px 3px 10px rgba(0,0,0,.08);
-margin-bottom:20px;
-">
-
-<h3>👨‍🎓 {student['first_name']} {student['last_name']}</h3>
-
-<p><b>📧 Email</b><br>
-{student['email']}</p>
-
-<p><b>📚 Course</b><br>
-{student['course']}</p>
-
-</div>
-""", unsafe_allow_html=True)
-
-# ---------------- Footer ----------------
-
-st.markdown("""
-<hr>
-<div class="footer">
-© 2026 Student Utility System | Python • Streamlit • MongoDB
-</div>
-""", unsafe_allow_html=True)
+    st.warning("No Student Found")

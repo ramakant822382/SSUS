@@ -1,173 +1,96 @@
 import streamlit as st
 import pandas as pd
+from datetime import date, datetime
 
 from database.mongodb import (
     students_collection,
     attendance_collection
 )
 
-# ---------------- Page Config ----------------
 st.set_page_config(
     page_title="Attendance Management",
     page_icon="📅",
     layout="wide"
 )
 
-# ---------------- CSS ----------------
-st.markdown("""
-<style>
-
-.stApp{
-    background-color:black;
-}
-
-.main-title{
-    font-size:45px;
-    font-weight:bold;
-    color:#1E3A8A;
-}
-
-.sub-text{
-    font-size:18px;
-    color:aqua;
-}
-
-.card{
-    background:black;
-    padding:18px;
-    border-radius:15px;
-    box-shadow:0px 3px 12px rgba(0,0,0,.08);
-    text-align:center;
-}
-
-.footer{
-    text-align:center;
-    color:gray;
-    margin-top:30px;
-}
-
-</style>
-""", unsafe_allow_html=True)
-
-# ---------------- Hero Section ----------------
-
-left, right = st.columns([1.3,1])
-
-with left:
-
-    st.markdown('<p class="main-title">📅 Attendance Management</p>',
-                unsafe_allow_html=True)
-
-    st.markdown("""
-    <p class="sub-text">
-    Manage student attendance quickly and efficiently.
-    Record attendance, monitor performance and generate attendance summaries.
-    </p>
-    """, unsafe_allow_html=True)
-
-with right:
-
-    st.image(
-        "https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=900",
-        use_container_width=True
-    )
-
-st.divider()
+st.title("📅 Attendance Management")
 
 # ---------------- Load Students ----------------
 
 students = list(students_collection.find())
 
 if not students:
-    st.warning("No students found. Please register students first.")
+    st.warning("No students found.")
     st.stop()
 
-student_names = []
-
-for student in students:
-    full_name = student["first_name"] + " " + student["last_name"]
-    student_names.append(full_name)
+student_names = [
+    f"{s['first_name']} {s['last_name']}"
+    for s in students
+]
 
 # ---------------- Dashboard ----------------
+
+col1, col2, col3 = st.columns(3)
+
+col1.metric("Students", len(student_names))
+col2.metric(
+    "Attendance",
+    attendance_collection.count_documents({})
+)
+col3.metric(
+    "Present",
+    attendance_collection.count_documents(
+        {"status": "Present"}
+    )
+)
+
+st.divider()
+
+# ===================================================
+# CREATE
+# ===================================================
+
+st.subheader("➕ Add Attendance")
 
 c1, c2, c3 = st.columns(3)
 
 with c1:
-    st.markdown(f"""
-    <div class="card">
-    <h2>👨‍🎓</h2>
-    <h3>{len(student_names)}</h3>
-    Students
-    </div>
-    """, unsafe_allow_html=True)
+    student = st.selectbox(
+        "Student",
+        student_names,
+        key="add_student"
+    )
 
 with c2:
-    total_records = attendance_collection.count_documents({})
-    st.markdown(f"""
-    <div class="card">
-    <h2>📅</h2>
-    <h3>{total_records}</h3>
-    Attendance Records
-    </div>
-    """, unsafe_allow_html=True)
+    attendance_date = st.date_input(
+        "Date",
+        value=date.today(),
+        key="add_date"
+    )
 
 with c3:
-    total_present = attendance_collection.count_documents({"status":"Present"})
-    st.markdown(f"""
-    <div class="card">
-    <h2>✅</h2>
-    <h3>{total_present}</h3>
-    Present Records
-    </div>
-    """, unsafe_allow_html=True)
-
-st.write("")
-
-# ---------------- Attendance Form ----------------
-
-st.subheader("📝 Mark Attendance")
-
-col1, col2 = st.columns(2)
-
-with col1:
-
-    selected_student = st.selectbox(
-        "👨‍🎓 Select Student",
-        student_names
-    )
-
-    attendance_date = st.date_input(
-        "📅 Attendance Date"
-    )
-
-with col2:
-
     status = st.selectbox(
-        "✅ Attendance Status",
-        ["Present","Absent"]
+        "Status",
+        ["Present", "Absent"],
+        key="add_status"
     )
 
-    st.write("")
-    st.write("")
-
-    mark = st.button(
-        "✔ Mark Attendance",
-        use_container_width=True
-    )
-
-if mark:
+if st.button("Save Attendance"):
 
     attendance_collection.insert_one({
-        "student_name": selected_student,
+        "student_name": student,
         "date": str(attendance_date),
         "status": status
     })
 
-    st.success("Attendance marked successfully!")
+    st.success("Attendance Added Successfully")
+    st.rerun()
 
 st.divider()
 
-# ---------------- Attendance Records ----------------
+# ===================================================
+# READ
+# ===================================================
 
 st.subheader("📋 Attendance Records")
 
@@ -175,61 +98,148 @@ records = list(attendance_collection.find())
 
 if records:
 
-    data = []
+    table = []
 
     for record in records:
 
-        data.append({
+        table.append({
+            "_id": str(record["_id"]),
             "Student": record["student_name"],
             "Date": record["date"],
             "Status": record["status"]
         })
 
-    df = pd.DataFrame(data)
+    df = pd.DataFrame(table)
 
     st.dataframe(
-        df,
+        df.drop(columns="_id"),
         use_container_width=True,
         hide_index=True
     )
 
+    st.divider()
+
+    # ===================================================
+    # UPDATE & DELETE
+    # ===================================================
+
+    st.subheader("✏ Update / Delete Attendance")
+
+    selected_id = st.selectbox(
+        "Select Record",
+        df["_id"],
+        format_func=lambda x:
+            df[df["_id"] == x]["Student"].iloc[0]
+            + " | "
+            + df[df["_id"] == x]["Date"].iloc[0],
+        key="record_select"
+    )
+
+    selected_record = None
+
+    for record in records:
+        if str(record["_id"]) == selected_id:
+            selected_record = record
+            break
+
+    c1, c2, c3 = st.columns(3)
+
+    with c1:
+
+        edit_student = st.selectbox(
+            "Student",
+            student_names,
+            index=student_names.index(
+                selected_record["student_name"]
+            ),
+            key="edit_student"
+        )
+
+    with c2:
+
+        edit_date = st.date_input(
+            "Date",
+            value=datetime.strptime(
+                selected_record["date"],
+                "%Y-%m-%d"
+            ),
+            key="edit_date"
+        )
+
+    with c3:
+
+        edit_status = st.selectbox(
+            "Status",
+            ["Present", "Absent"],
+            index=0 if selected_record["status"] == "Present" else 1,
+            key="edit_status"
+        )
+
+    b1, b2 = st.columns(2)
+
+    with b1:
+
+        if st.button("Update Attendance"):
+
+            attendance_collection.update_one(
+                {"_id": selected_record["_id"]},
+                {
+                    "$set": {
+                        "student_name": edit_student,
+                        "date": str(edit_date),
+                        "status": edit_status
+                    }
+                }
+            )
+
+            st.success("Attendance Updated")
+            st.rerun()
+
+    with b2:
+
+        if st.button("Delete Attendance"):
+
+            attendance_collection.delete_one(
+                {"_id": selected_record["_id"]}
+            )
+
+            st.success("Attendance Deleted")
+            st.rerun()
+
 else:
-    st.info("No attendance records found.")
+
+    st.info("No Attendance Records Found.")
 
 st.divider()
 
-# ---------------- Attendance Summary ----------------
+# ===================================================
+# SUMMARY
+# ===================================================
 
 st.subheader("📊 Attendance Summary")
 
 for student in student_names:
 
-    total = attendance_collection.count_documents({
-        "student_name": student
-    })
+    total = attendance_collection.count_documents(
+        {"student_name": student}
+    )
 
-    present = attendance_collection.count_documents({
-        "student_name": student,
-        "status": "Present"
-    })
+    present = attendance_collection.count_documents(
+        {
+            "student_name": student,
+            "status": "Present"
+        }
+    )
 
     if total > 0:
 
-        percentage = (present / total) * 100
+        percentage = round(
+            (present / total) * 100,
+            2
+        )
 
         st.write(f"**{student}**")
 
         st.progress(percentage / 100)
 
-        st.write(f"Attendance : **{round(percentage,2)}%**")
-
-        st.write("")
-
-# ---------------- Footer ----------------
-
-st.markdown("""
-<hr>
-<div class="footer">
-© 2026 Student Utility System | Developed using Python, Streamlit & MongoDB
-</div>
-""", unsafe_allow_html=True)
+        st.write(f"{percentage}% Attendance")

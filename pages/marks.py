@@ -8,286 +8,276 @@ from database.mongodb import (
 
 from utils.grade import calculate_grade
 
-# ---------------- Page Config ----------------
 st.set_page_config(
     page_title="Student Marks",
     page_icon="📚",
     layout="wide"
 )
 
-# ---------------- CSS ----------------
-st.markdown("""
-<style>
-
-.stApp{
-    background:black;
-}
-
-.title{
-    font-size:42px;
-    font-weight:bold;
-    color:#2E3A87;
-}
-
-.subtitle{
-    color:aqua;
-    font-size:18px;
-}
-
-.card{
-    background:black;
-    padding:18px;
-    border-radius:15px;
-    box-shadow:0px 3px 12px rgba(0,0,0,.08);
-    text-align:center;
-}
-
-.footer{
-    text-align:center;
-    color:gray;
-    margin-top:30px;
-}
-
-</style>
-""", unsafe_allow_html=True)
-
-# ---------------- Hero ----------------
-
-left, right = st.columns([1.3,1])
-
-with left:
-
-    st.markdown(
-        '<p class="title">📚 Student Marks Management</p>',
-        unsafe_allow_html=True
-    )
-
-    st.markdown("""
-<div class="subtitle">
-Manage student academic records by entering Python,
-SQL and Excel marks. Automatically calculate
-percentage and grade.
-</div>
-""", unsafe_allow_html=True)
-
-with right:
-
-    st.image(
-        "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=900",
-        use_container_width=True
-    )
-
-st.divider()
+st.title("📚 Student Marks Management")
 
 # ---------------- Students ----------------
 
-students = list(
-    students_collection.find()
-)
+students = list(students_collection.find())
 
 if not students:
-    st.warning("No students found")
+    st.warning("No students found.")
     st.stop()
 
-student_names = []
-
-for student in students:
-
-    full_name = (
-        student["first_name"]
-        + " "
-        + student["last_name"]
-    )
-
-    student_names.append(full_name)
+student_names = [
+    f"{s['first_name']} {s['last_name']}"
+    for s in students
+]
 
 # ---------------- Dashboard ----------------
 
-all_marks = list(
-    marks_collection.find()
-)
+records = list(marks_collection.find())
 
-c1,c2,c3 = st.columns(3)
+c1, c2, c3 = st.columns(3)
 
-with c1:
-    st.markdown(f"""
-<div class="card">
-<h2>👨‍🎓</h2>
-<h3>{len(student_names)}</h3>
-Students
-</div>
-""", unsafe_allow_html=True)
+c1.metric("Students", len(student_names))
+c2.metric("Reports", len(records))
 
-with c2:
-    st.markdown(f"""
-<div class="card">
-<h2>📄</h2>
-<h3>{len(all_marks)}</h3>
-Reports
-</div>
-""", unsafe_allow_html=True)
+avg = round(
+    sum(r["percentage"] for r in records) / len(records),
+    2
+) if records else 0
 
-with c3:
+c3.metric("Average %", avg)
 
-    average = round(
-        sum(i["percentage"] for i in all_marks)/len(all_marks),2
-    ) if all_marks else 0
+st.divider()
 
-    st.markdown(f"""
-<div class="card">
-<h2>📊</h2>
-<h3>{average}%</h3>
-Average
-</div>
-""", unsafe_allow_html=True)
+# ====================================================
+# CREATE
+# ====================================================
 
-st.write("")
+st.subheader("➕ Add Marks")
 
-# ---------------- Form ----------------
-
-st.subheader("📝 Enter Student Marks")
-
-col1,col2 = st.columns(2)
+col1, col2 = st.columns(2)
 
 with col1:
 
-    selected_student = st.selectbox(
-        "👨‍🎓 Select Student",
-        student_names
+    student = st.selectbox(
+        "Student",
+        student_names,
+        key="add_student"
     )
 
     python_marks = st.number_input(
-        "🐍 Python Marks",
-        min_value=0,
-        max_value=100
+        "Python",
+        0,
+        100,
+        key="add_python"
     )
 
 with col2:
 
     sql_marks = st.number_input(
-        "🗄 SQL Marks",
-        min_value=0,
-        max_value=100
+        "SQL",
+        0,
+        100,
+        key="add_sql"
     )
 
     excel_marks = st.number_input(
-        "📗 Excel Marks",
-        min_value=0,
-        max_value=100
+        "Excel",
+        0,
+        100,
+        key="add_excel"
     )
 
-save = st.button(
-    "💾 Save Marks",
-    use_container_width=True
-)
+if st.button("Save Marks"):
 
-# ---------------- Save ----------------
-
-if save:
-
-    percentage = (
-        python_marks +
-        sql_marks +
-        excel_marks
-    ) / 3
-
-    grade = calculate_grade(
-        percentage
+    percentage = round(
+        (python_marks + sql_marks + excel_marks) / 3,
+        2
     )
 
-    # -------- MongoDB Query (UNCHANGED) --------
+    grade = calculate_grade(percentage)
 
     marks_collection.insert_one({
 
-        "student_name":
-        selected_student,
-
-        "python":
-        python_marks,
-
-        "sql":
-        sql_marks,
-
-        "excel":
-        excel_marks,
-
-        "percentage":
-        round(percentage,2),
-
-        "grade":
-        grade
+        "student_name": student,
+        "python": python_marks,
+        "sql": sql_marks,
+        "excel": excel_marks,
+        "percentage": percentage,
+        "grade": grade
 
     })
 
-    st.success("Marks Saved Successfully 🎉")
-
-    r1,r2 = st.columns(2)
-
-    with r1:
-        st.metric(
-            "Percentage",
-            f"{round(percentage,2)}%"
-        )
-
-    with r2:
-
-        if grade=="A":
-            st.success(f"🏆 Grade : {grade}")
-
-        elif grade=="B":
-            st.info(f"📘 Grade : {grade}")
-
-        elif grade=="C":
-            st.warning(f"📙 Grade : {grade}")
-
-        else:
-            st.error(f"❌ Grade : {grade}")
+    st.success("Marks Saved Successfully")
+    st.rerun()
 
 st.divider()
 
-# ---------------- Reports ----------------
+# ====================================================
+# READ
+# ====================================================
 
-st.subheader("📋 Student Marks Report")
+st.subheader("📋 Marks Records")
 
-all_marks = list(
-    marks_collection.find()
-)
+records = list(marks_collection.find())
 
-if all_marks:
+if records:
 
-    data=[]
+    table = []
 
-    for mark in all_marks:
+    for record in records:
 
-        data.append({
+        table.append({
 
-            "Student":
-            mark["student_name"],
-
-            "Python":
-            mark["python"],
-
-            "SQL":
-            mark["sql"],
-
-            "Excel":
-            mark["excel"],
-
-            "Percentage":
-            f'{mark["percentage"]}%',
-
-            "Grade":
-            mark["grade"]
+            "_id": str(record["_id"]),
+            "Student": record["student_name"],
+            "Python": record["python"],
+            "SQL": record["sql"],
+            "Excel": record["excel"],
+            "Percentage": record["percentage"],
+            "Grade": record["grade"]
 
         })
 
-    df=pd.DataFrame(data)
+    df = pd.DataFrame(table)
 
     st.dataframe(
-        df,
+        df.drop(columns="_id"),
         use_container_width=True,
         hide_index=True
     )
+
+    st.divider()
+
+    # ====================================================
+    # UPDATE & DELETE
+    # ====================================================
+
+    st.subheader("✏ Update / Delete Marks")
+
+    selected_id = st.selectbox(
+
+        "Select Record",
+
+        df["_id"],
+
+        format_func=lambda x:
+            df[df["_id"] == x]["Student"].iloc[0],
+
+        key="record_select"
+
+    )
+
+    selected = None
+
+    for record in records:
+
+        if str(record["_id"]) == selected_id:
+            selected = record
+            break
+
+    c1, c2 = st.columns(2)
+
+    with c1:
+
+        edit_student = st.selectbox(
+
+            "Student",
+
+            student_names,
+
+            index=student_names.index(
+                selected["student_name"]
+            ),
+
+            key="edit_student"
+
+        )
+
+        edit_python = st.number_input(
+
+            "Python",
+
+            0,
+            100,
+
+            value=int(selected["python"]),
+
+            key="edit_python"
+
+        )
+
+    with c2:
+
+        edit_sql = st.number_input(
+
+            "SQL",
+
+            0,
+            100,
+
+            value=int(selected["sql"]),
+
+            key="edit_sql"
+
+        )
+
+        edit_excel = st.number_input(
+
+            "Excel",
+
+            0,
+            100,
+
+            value=int(selected["excel"]),
+
+            key="edit_excel"
+
+        )
+
+    percentage = round(
+        (edit_python + edit_sql + edit_excel) / 3,
+        2
+    )
+
+    grade = calculate_grade(percentage)
+
+    b1, b2 = st.columns(2)
+
+    with b1:
+
+        if st.button("Update"):
+
+            marks_collection.update_one(
+
+                {"_id": selected["_id"]},
+
+                {
+                    "$set": {
+
+                        "student_name": edit_student,
+                        "python": edit_python,
+                        "sql": edit_sql,
+                        "excel": edit_excel,
+                        "percentage": percentage,
+                        "grade": grade
+
+                    }
+                }
+
+            )
+
+            st.success("Updated Successfully")
+            st.rerun()
+
+    with b2:
+
+        if st.button("Delete"):
+
+            marks_collection.delete_one(
+                {"_id": selected["_id"]}
+            )
+
+            st.success("Deleted Successfully")
+            st.rerun()
 
 else:
 
@@ -295,33 +285,27 @@ else:
 
 st.divider()
 
-# ---------------- Grade Summary ----------------
+# ====================================================
+# SUMMARY
+# ====================================================
 
-st.subheader("🏆 Grade Summary")
+st.subheader("📊 Grade Summary")
 
-grades={}
+grade_count = {}
 
-for mark in all_marks:
+for record in records:
 
-    g=mark["grade"]
+    g = record["grade"]
 
-    grades[g]=grades.get(g,0)+1
+    grade_count[g] = grade_count.get(g, 0) + 1
 
-if grades:
+if grade_count:
 
-    cols = st.columns(len(grades))
+    cols = st.columns(len(grade_count))
 
-    for i,(grade,count) in enumerate(grades.items()):
+    for i, (g, count) in enumerate(grade_count.items()):
 
-        with cols[i]:
-            st.metric(
-                f"Grade {grade}",
-                count
-            )
-
-st.markdown("""
-<hr>
-<div class="footer">
-© 2026 Student Utility System | Python • Streamlit • MongoDB
-</div>
-""", unsafe_allow_html=True)
+        cols[i].metric(
+            f"Grade {g}",
+            count
+        )
